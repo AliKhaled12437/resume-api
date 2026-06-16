@@ -11,16 +11,17 @@ class ResumeInput(BaseModel):
 
 @app.post("/extract")
 def extract_skills(payload: ResumeInput):
-    # إرسال النص للموديل بحروف صغيرة
-    response = requests.post(API_URL, json={"inputs": payload.text.lower()})
-
+    try:
+        response = requests.post(API_URL, json={"inputs": payload.text.lower()})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to connect to Hugging Face: {str(e)}")
+        
     if response.status_code != 200:
         raise HTTPException(status_code=500, detail="Hugging Face Server Error")
-
+        
     results = response.json()
     extracted_skills = set()
-
-    # القائمة السوداء للتنظيف الجذري
+    
     blacklist = {
         'gal', 'august', 'september', 'july', 'cib', 'iti', 'trends', 'enrollment',
         'banking operations', 'commercial international bank', 'information technology institute',
@@ -31,6 +32,7 @@ def extract_skills(payload: ResumeInput):
         if entity.get('entity_group') == 'SKILL':
             skill = entity['word'].replace("##", "").strip().upper()
             if len(skill) > 2 and skill not in blacklist:
+                if skill == 'PANDAS': skill = 'PANDAS (PYTHON)'
                 extracted_skills.add(skill)
-
+                
     return {"skills": list(sorted(extracted_skills))}
